@@ -480,143 +480,406 @@ Diff:
     en: Binary file changed
     zh-CN: 二进制文件已变更
     zh-HK: 二進位檔案已變更
+    zh-TW: 二進位檔案已變更
+    ja: "バイナリファイルが変更されました"
+    ko: "바이너리 파일이 변경되었습니다"
+    fr: "Fichier binaire modifié"
+    de: "Binärdatei geändert"
+    es: "Archivo binario modificado"
+    pt-BR: "Arquivo binário alterado"
   NoTextChanges:
     en: No text changes in this patch
     zh-CN: 此 patch 没有文本变更
     zh-HK: 此 patch 沒有文字變更
+    zh-TW: 此 patch 沒有文字變更
+    ja: "このパッチにテキストの変更はありません"
+    ko: "이 패치에 텍스트 변경 사항이 없습니다"
+    fr: "Aucune modification textuelle dans ce patch"
+    de: "Keine Textänderungen in diesem Patch"
+    es: "No hay cambios de texto en este parche"
+    pt-BR: "Não há alterações de texto neste patch"
   NoChanges:
     en: No changes
     zh-CN: 没有变更
     zh-HK: 沒有變更
+    zh-TW: 沒有變更
+    ja: "変更なし"
+    ko: "변경 사항 없음"
+    fr: "Aucune modification"
+    de: "Keine Änderungen"
+    es: "Sin cambios"
+    pt-BR: "Sem alterações"
   EmptyFile:
     en: Empty file
     zh-CN: 空文件
     zh-HK: 空檔案
+    zh-TW: 空檔案
+    ja: "空のファイル"
+    ko: "빈 파일"
+    fr: "Fichier vide"
+    de: "Leere Datei"
+    es: "Archivo vacío"
+    pt-BR: "Arquivo vazio"
   AddedFile:
     en: Added file
     zh-CN: 新增文件
     zh-HK: 新增檔案
+    zh-TW: 新增檔案
+    ja: "追加されたファイル"
+    ko: "추가된 파일"
+    fr: "Fichier ajouté"
+    de: "Hinzugefügte Datei"
+    es: "Archivo añadido"
+    pt-BR: "Arquivo adicionado"
   DeletedFile:
     en: Deleted file
     zh-CN: 已删除文件
     zh-HK: 已刪除檔案
+    zh-TW: 已刪除檔案
+    ja: "削除されたファイル"
+    ko: "삭제된 파일"
+    fr: "Fichier supprimé"
+    de: "Gelöschte Datei"
+    es: "Archivo eliminado"
+    pt-BR: "Arquivo excluído"
   RenamedFile:
     en: Renamed
     zh-CN: 已重命名
     zh-HK: 已重新命名
+    zh-TW: 已重新命名
+    ja: "名前変更"
+    ko: "이름 변경됨"
+    fr: "Renommé"
+    de: "Umbenannt"
+    es: "Renombrado"
+    pt-BR: "Renomeado"
   CopiedFile:
     en: Copied
     zh-CN: 已复制
     zh-HK: 已複製
+    zh-TW: 已複製
+    ja: "コピー"
+    ko: "복사됨"
+    fr: "Copié"
+    de: "Kopiert"
+    es: "Copiado"
+    pt-BR: "Copiado"
   HiddenLines:
     en: "%{count} lines not in patch"
     zh-CN: "patch 中未包含 %{count} 行"
     zh-HK: "patch 中未包含 %{count} 行"
+    zh-TW: "patch 中未包含 %{count} 行"
+    ja: "パッチに含まれない行：%{count}"
+    ko: "패치에 포함되지 않은 %{count}줄"
+    fr: "Lignes absentes du patch : %{count}"
+    de: "Nicht im Patch enthaltene Zeilen: %{count}"
+    es: "Líneas no incluidas en el parche: %{count}"
+    pt-BR: "Linhas não incluídas no patch: %{count}"
   ExpandAbove:
     en: Show %{count} lines above
     zh-CN: 显示上方 %{count} 行
     zh-HK: 顯示上方 %{count} 行
+    zh-TW: 顯示上方 %{count} 行
+    ja: "上の %{count} 行を表示"
+    ko: "위쪽 %{count}줄 표시"
+    fr: "Afficher les %{count} lignes précédentes"
+    de: "%{count} Zeilen darüber anzeigen"
+    es: "Mostrar %{count} líneas anteriores"
+    pt-BR: "Mostrar %{count} linhas acima"
   ExpandBelow:
     en: Show %{count} lines below
     zh-CN: 显示下方 %{count} 行
     zh-HK: 顯示下方 %{count} 行
+    zh-TW: 顯示下方 %{count} 行
+    ja: "下の %{count} 行を表示"
+    ko: "아래쪽 %{count}줄 표시"
+    fr: "Afficher les %{count} lignes suivantes"
+    de: "%{count} Zeilen darunter anzeigen"
+    es: "Mostrar %{count} líneas siguientes"
+    pt-BR: "Mostrar %{count} linhas abaixo"
   CollapseFile:
     en: Collapse %{name}
     zh-CN: 收起 %{name}
     zh-HK: 收起 %{name}
+    zh-TW: 收起 %{name}
+    ja: "%{name} を折りたたむ"
+    ko: "%{name} 접기"
+    fr: "Replier %{name}"
+    de: "%{name} einklappen"
+    es: "Contraer %{name}"
+    pt-BR: "Recolher %{name}"
   ExpandFile:
     en: Expand %{name}
     zh-CN: 展开 %{name}
     zh-HK: 展開 %{name}
+    zh-TW: 展開 %{name}
+    ja: "%{name} を展開"
+    ko: "%{name} 펼치기"
+    fr: "Déplier %{name}"
+    de: "%{name} ausklappen"
+    es: "Expandir %{name}"
+    pt-BR: "Expandir %{name}"
   AddAnnotation:
     en: Add annotation to line %{line}
     zh-CN: 为第 %{line} 行添加批注
     zh-HK: 為第 %{line} 行新增批註
+    zh-TW: 為第 %{line} 行新增批註
+    ja: "%{line} 行目に注釈を追加"
+    ko: "%{line}번째 줄에 주석 추가"
+    fr: "Annoter la ligne %{line}"
+    de: "Anmerkung zu Zeile %{line} hinzufügen"
+    es: "Añadir anotación a la línea %{line}"
+    pt-BR: "Adicionar anotação à linha %{line}"
   ConflictedFile:
     en: Conflicts
     zh-CN: 有冲突
     zh-HK: 有衝突
+    zh-TW: 有衝突
+    ja: "競合"
+    ko: "충돌"
+    fr: "Conflits"
+    de: "Konflikte"
+    es: "Conflictos"
+    pt-BR: "Conflitos"
   CurrentChange:
     en: Current change
     zh-CN: 当前更改
     zh-HK: 目前變更
+    zh-TW: 目前變更
+    ja: "現在の変更"
+    ko: "현재 변경 사항"
+    fr: "Modification actuelle"
+    de: "Aktuelle Änderung"
+    es: "Cambio actual"
+    pt-BR: "Alteração atual"
   IncomingChange:
     en: Incoming change
     zh-CN: 传入的更改
     zh-HK: 傳入的變更
+    zh-TW: 傳入的變更
+    ja: "取り込む変更"
+    ko: "들어오는 변경 사항"
+    fr: "Modification entrante"
+    de: "Eingehende Änderung"
+    es: "Cambio entrante"
+    pt-BR: "Alteração recebida"
   BaseChange:
     en: Common ancestor
     zh-CN: 共同祖先
     zh-HK: 共同祖先
+    zh-TW: 共同祖先
+    ja: "共通の祖先"
+    ko: "공통 조상"
+    fr: "Ancêtre commun"
+    de: "Gemeinsamer Vorfahr"
+    es: "Ancestro común"
+    pt-BR: "Ancestral comum"
   AcceptCurrent:
     en: Accept Current
     zh-CN: 采用当前更改
     zh-HK: 採用目前變更
+    zh-TW: 採用目前變更
+    ja: "現在の変更を採用"
+    ko: "현재 변경 사항 수락"
+    fr: "Accepter la modification actuelle"
+    de: "Aktuelle Änderung übernehmen"
+    es: "Aceptar el actual"
+    pt-BR: "Aceitar a atual"
   AcceptIncoming:
     en: Accept Incoming
     zh-CN: 采用传入的更改
     zh-HK: 採用傳入的變更
+    zh-TW: 採用傳入的變更
+    ja: "取り込む変更を採用"
+    ko: "들어오는 변경 사항 수락"
+    fr: "Accepter la modification entrante"
+    de: "Eingehende Änderung übernehmen"
+    es: "Aceptar el entrante"
+    pt-BR: "Aceitar a recebida"
   AcceptBoth:
     en: Accept Both
     zh-CN: 保留双方更改
     zh-HK: 保留雙方變更
+    zh-TW: 保留雙方變更
+    ja: "両方の変更を採用"
+    ko: "두 변경 사항 모두 수락"
+    fr: "Accepter les deux"
+    de: "Beide übernehmen"
+    es: "Aceptar ambos"
+    pt-BR: "Aceitar ambas"
   AcceptedCurrent:
     en: Accepted current change
     zh-CN: 已采用当前更改
     zh-HK: 已採用目前變更
+    zh-TW: 已採用目前變更
+    ja: "現在の変更を採用しました"
+    ko: "현재 변경 사항을 수락했습니다"
+    fr: "Modification actuelle acceptée"
+    de: "Aktuelle Änderung übernommen"
+    es: "Cambio actual aceptado"
+    pt-BR: "Alteração atual aceita"
   AcceptedIncoming:
     en: Accepted incoming change
     zh-CN: 已采用传入的更改
     zh-HK: 已採用傳入的變更
+    zh-TW: 已採用傳入的變更
+    ja: "取り込む変更を採用しました"
+    ko: "들어오는 변경 사항을 수락했습니다"
+    fr: "Modification entrante acceptée"
+    de: "Eingehende Änderung übernommen"
+    es: "Cambio entrante aceptado"
+    pt-BR: "Alteração recebida aceita"
   AcceptedBoth:
     en: Accepted both changes
     zh-CN: 已保留双方更改
     zh-HK: 已保留雙方變更
+    zh-TW: 已保留雙方變更
+    ja: "両方の変更を採用しました"
+    ko: "두 변경 사항을 모두 수락했습니다"
+    fr: "Les deux modifications ont été acceptées"
+    de: "Beide Änderungen übernommen"
+    es: "Ambos cambios aceptados"
+    pt-BR: "Ambas as alterações aceitas"
   UndoResolution:
     en: Undo
     zh-CN: 撤销
     zh-HK: 復原
+    zh-TW: 復原
+    ja: "元に戻す"
+    ko: "실행 취소"
+    fr: "Annuler"
+    de: "Rückgängig"
+    es: "Deshacer"
+    pt-BR: "Desfazer"
   Original:
     en: Original
     zh-CN: 原版
     zh-HK: 原版
+    zh-TW: 原版
+    ja: "変更前"
+    ko: "원본"
+    fr: "Original"
+    de: "Original"
+    es: "Original"
+    pt-BR: "Original"
   Modified:
     en: Modified
     zh-CN: 新版
     zh-HK: 新版
+    zh-TW: 新版
+    ja: "変更後"
+    ko: "수정본"
+    fr: "Modifié"
+    de: "Geändert"
+    es: "Modificado"
+    pt-BR: "Modificado"
   ExpandLines:
     en: Expand %{count} unchanged lines
     zh-CN: 展开 %{count} 行未变更内容
     zh-HK: 展開 %{count} 行未變更內容
+    zh-TW: 展開 %{count} 行未變更內容
+    ja: "変更のない %{count} 行を展開"
+    ko: "변경되지 않은 %{count}줄 펼치기"
+    fr: "Déplier les lignes inchangées (%{count})"
+    de: "Unveränderte Zeilen ausklappen (%{count})"
+    es: "Expandir líneas sin cambios (%{count})"
+    pt-BR: "Expandir linhas inalteradas (%{count})"
+  CollapseLines:
+    en: Collapse %{count} unchanged lines
+    zh-CN: 收起 %{count} 行未变更内容
+    zh-HK: 收起 %{count} 行未變更內容
+    zh-TW: 收起 %{count} 行未變更內容
+    ja: "変更のない %{count} 行を折りたたむ"
+    ko: "변경되지 않은 %{count}줄 접기"
+    fr: "Replier les lignes inchangées (%{count})"
+    de: "Unveränderte Zeilen einklappen (%{count})"
+    es: "Contraer líneas sin cambios (%{count})"
+    pt-BR: "Recolher linhas inalteradas (%{count})"
   SourceLine:
     en: "%{side} line %{line}"
     zh-CN: "%{side}第 %{line} 行"
     zh-HK: "%{side}第 %{line} 行"
+    zh-TW: "%{side}第 %{line} 行"
+    ja: "%{side}の %{line} 行目"
+    ko: "%{side} %{line}번째 줄"
+    fr: "%{side}, ligne %{line}"
+    de: "%{side}, Zeile %{line}"
+    es: "%{side}, línea %{line}"
+    pt-BR: "%{side}, linha %{line}"
   AddedLine:
     en: "%{side} line %{line}, added"
     zh-CN: "%{side}第 %{line} 行，新增"
     zh-HK: "%{side}第 %{line} 行，新增"
+    zh-TW: "%{side}第 %{line} 行，新增"
+    ja: "%{side}の %{line} 行目、追加"
+    ko: "%{side} %{line}번째 줄, 추가됨"
+    fr: "%{side}, ligne %{line}, ajoutée"
+    de: "%{side}, Zeile %{line}, hinzugefügt"
+    es: "%{side}, línea %{line}, añadida"
+    pt-BR: "%{side}, linha %{line}, adicionada"
   RemovedLine:
     en: "%{side} line %{line}, removed"
     zh-CN: "%{side}第 %{line} 行，删除"
     zh-HK: "%{side}第 %{line} 行，刪除"
+    zh-TW: "%{side}第 %{line} 行，刪除"
+    ja: "%{side}の %{line} 行目、削除"
+    ko: "%{side} %{line}번째 줄, 삭제됨"
+    fr: "%{side}, ligne %{line}, supprimée"
+    de: "%{side}, Zeile %{line}, entfernt"
+    es: "%{side}, línea %{line}, eliminada"
+    pt-BR: "%{side}, linha %{line}, removida"
   UnchangedLines:
     en: "%{count} unchanged lines"
     zh-CN: "%{count} 行未变更内容"
     zh-HK: "%{count} 行未變更內容"
+    zh-TW: "%{count} 行未變更內容"
+    ja: "変更のない %{count} 行"
+    ko: "변경되지 않은 %{count}줄"
+    fr: "Lignes inchangées : %{count}"
+    de: "Unveränderte Zeilen: %{count}"
+    es: "Líneas sin cambios: %{count}"
+    pt-BR: "Linhas inalteradas: %{count}"
   SelectLine:
     en: Select %{side} line %{line}
     zh-CN: 选择%{side}第 %{line} 行
     zh-HK: 選擇%{side}第 %{line} 行
+    zh-TW: 選擇%{side}第 %{line} 行
+    ja: "%{side}の %{line} 行目を選択"
+    ko: "%{side} %{line}번째 줄 선택"
+    fr: "Sélectionner %{side}, ligne %{line}"
+    de: "%{side}, Zeile %{line} auswählen"
+    es: "Seleccionar %{side}, línea %{line}"
+    pt-BR: "Selecionar %{side}, linha %{line}"
   NoNewline:
     en: No newline at end of file
     zh-CN: 文件末尾没有换行
     zh-HK: 檔案末尾沒有換行
+    zh-TW: 檔案末尾沒有換行
+    ja: "ファイル末尾に改行がありません"
+    ko: "파일 끝에 줄 바꿈 없음"
+    fr: "Aucun saut de ligne en fin de fichier"
+    de: "Kein Zeilenumbruch am Dateiende"
+    es: "Sin salto de línea al final del archivo"
+    pt-BR: "Sem quebra de linha no final do arquivo"
   Viewer:
     en: Diff for %{name}
     zh-CN: "%{name} 的差异"
     zh-HK: "%{name} 的差異"
+    zh-TW: "%{name} 的差異"
+    ja: "%{name} の差分"
+    ko: "%{name}의 차이"
+    fr: "Différences pour %{name}"
+    de: "Änderungen für %{name}"
+    es: "Diferencias de %{name}"
+    pt-BR: "Diferenças de %{name}"
   ViewerFiles:
     en: Diff for %{count} files
     zh-CN: "%{count} 个文件的差异"
     zh-HK: "%{count} 個檔案的差異"
+    zh-TW: "%{count} 個檔案的差異"
+    ja: "%{count} ファイルの差分"
+    ko: "파일 %{count}개의 차이"
+    fr: "Différences pour %{count} fichiers"
+    de: "Änderungen für %{count} Dateien"
+    es: "Diferencias de %{count} archivos"
+    pt-BR: "Diferenças de %{count} arquivos"

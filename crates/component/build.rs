@@ -8,4 +8,5 @@ fn main() {
     println!("cargo:rustc-env=GPUI_KIT_DEFAULT_ICONS_DIR={icons_dir}");
     println!("cargo:rerun-if-changed={icons_dir}");
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=locales");
 }
