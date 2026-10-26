@@ -165,7 +165,13 @@ impl Overscroll {
                 let moving = self
                     .moved_at
                     .is_some_and(|at| now.saturating_duration_since(at) < STILL);
-                let velocity = if moving { self.velocity } else { 0. };
+                // Releasing a gesture in the middle of the content has no edge
+                // to throw. Only an already stretched edge carries velocity.
+                let velocity = if moving && self.offset() != 0. {
+                    self.velocity
+                } else {
+                    0.
+                };
                 self.physics.let_go(velocity * CARRY);
                 thrown = true;
                 self.spent = self.offset() != 0.;
