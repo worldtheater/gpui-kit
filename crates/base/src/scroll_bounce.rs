@@ -591,9 +591,17 @@ impl Element for ScrollBounce {
                         |dy| {
                             let before = handle.offset();
                             let mut offset = before;
-                            offset.y = (before.y + px(dy)).clamp(-max, px(0.));
+                            let requested = before.y + px(dy);
+                            offset.y = requested.clamp(-max, px(0.));
                             handle.set_offset(offset);
-                            (offset.y - before.y).as_f32()
+                            // Without clamping the whole packet was consumed.
+                            // Subtracting two large f32 offsets can round by a
+                            // fraction of a pixel and falsely throw the edge.
+                            if offset.y == requested {
+                                dy
+                            } else {
+                                (offset.y - before.y).as_f32().clamp(dy.min(0.), dy.max(0.))
+                            }
                         },
                     )
                 };
