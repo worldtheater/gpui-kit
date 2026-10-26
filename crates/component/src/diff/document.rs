@@ -496,6 +496,23 @@ impl DiffFile {
     pub fn is_binary(&self) -> bool {
         self.inner.binary
     }
+    /// Contiguous changed source blocks, independent of layout and folding.
+    pub fn change_block_count(&self) -> usize {
+        self.hunks()
+            .iter()
+            .map(|hunk| {
+                let pairs = &self.pairs()[hunk.pairs()];
+                pairs
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, pair)| {
+                        pair.is_changed() && (*index == 0 || !pairs[*index - 1].is_changed())
+                    })
+                    .count()
+            })
+            .sum()
+    }
+
     pub fn additions(&self) -> usize {
         self.inner.additions
     }
