@@ -16,7 +16,7 @@ pub use parser::DiffParseError;
 pub use presentation::DiffInlineUnit;
 pub use state::{DiffEvent, DiffState};
 
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{collections::HashMap, ops::Range, rc::Rc, sync::Arc};
 
 use gpui::{
     AnyElement, App, Axis, ClickEvent, ClipboardItem, Context, ElementId, Entity, Focusable as _,
@@ -30,7 +30,7 @@ use rust_i18n::t;
 
 use crate::{
     ActiveTheme as _, Icon, IconName, Sizable as _, StyledExt as _,
-    button::{Button, ButtonVariants as _},
+    button::{Button, ButtonCustomVariant, ButtonVariants as _},
     h_flex,
     input::{Copy, SelectAll},
     scroll::{ScrollableMask, Scrollbar},
@@ -114,6 +114,8 @@ pub enum DiffHunkSeparator {
     LineInfo,
     /// A thin divider.
     Simple,
+    /// A compact wave marking omitted or folded unchanged context.
+    Wave,
 }
 
 /// How changed lines are marked beside the code.
@@ -463,7 +465,8 @@ fn render_diff(
         .max()
         .unwrap_or(1);
     let gutter_width = if props.line_number {
-        font_size * 0.7 * digits as f32 + rem
+        // Reserve a disclosure slot even when collapsed so code never shifts.
+        font_size * 0.7 * digits as f32 + rem * 2.
     } else {
         px(0.)
     };
@@ -913,6 +916,7 @@ fn render_row(
             original,
             modified,
             changed,
+            expanded_fold,
         } => {
             if code.mode == DiffMode::Split && !code.files[*file].is_single_column() {
                 h_flex()
@@ -924,6 +928,7 @@ fn render_row(
                         *original,
                         *modified,
                         *changed,
+                        expanded_fold.clone(),
                         code.clone(),
                         window,
                         cx,
@@ -934,6 +939,7 @@ fn render_row(
                         *modified,
                         *original,
                         *changed,
+                        expanded_fold.clone(),
                         code,
                         window,
                         cx,
@@ -951,6 +957,7 @@ fn render_row(
                     ix,
                     (*original, *modified),
                     *changed,
+                    expanded_fold.clone(),
                     code,
                     window,
                     cx,
@@ -988,7 +995,45 @@ fn render_hunk_separator(
                 .into_any_element()
         }
         DiffHunkSeparator::Simple => row.h_1().into_any_element(),
+        DiffHunkSeparator::Wave => {
+            let hidden = hunks[hunk].hidden_lines_before(hunk.checked_sub(1).map(|ix| &hunks[ix]));
+            if hidden == 0 {
+                return div().into_any_element();
+            }
+            wave_separator(false, cx).into_any_element()
+        }
     }
+}
+
+fn wave_separator(interactive: bool, cx: &App) -> impl IntoElement + use<> {
+    let color = cx.theme().muted_foreground.opacity(0.4);
+    gpui::canvas(
+        |_, _, _| {},
+        move |bounds, _, window, _| {
+            let half_period = window.rem_size() * 0.65;
+            let amplitude = window.rem_size() * 0.12;
+            let center = bounds.center().y;
+            let mut x = bounds.left();
+            let mut direction = 1.;
+            let hovered = interactive && bounds.contains(&window.mouse_position());
+            let mut path = gpui::PathBuilder::stroke(px(if hovered { 2. } else { 1. }));
+            path.move_to(point(x, center));
+            while x < bounds.right() {
+                let end = (x + half_period).min(bounds.right());
+                path.curve_to(
+                    point(end, center),
+                    point((x + end) / 2., center + amplitude * 2. * direction),
+                );
+                x = end;
+                direction = -direction;
+            }
+            if let Ok(path) = path.build() {
+                window.paint_path(path, color);
+            }
+        },
+    )
+    .w_full()
+    .h(gpui::rems(0.75))
 }
 
 fn render_fold(
@@ -1021,6 +1066,19 @@ fn render_fold(
                 })
             })
     };
+    if matches!(code.hunk_separator, DiffHunkSeparator::Wave) {
+        let label = t!("Diff.ExpandLines", count = pairs.len()).to_string();
+        return expand(("expand", pairs.start), FoldExpansion::All)
+            .custom(ButtonCustomVariant::new(cx))
+            .w_full()
+            .h(gpui::rems(0.75))
+            .p_0()
+            .rounded(px(0.))
+            .accessibility_label(label.clone())
+            .tooltip(label)
+            .child(wave_separator(true, cx))
+            .into_any_element();
+    }
     h_flex()
         .w_full()
         .h_6()
@@ -1302,6 +1360,8 @@ fn render_gutter(
     file: usize,
     side: DiffSide,
     ix: Option<usize>,
+    changed_color: Option<Hsla>,
+    expanded_fold: Option<Range<usize>>,
     code: &CodePresentation,
     cx: &App,
 ) -> AnyElement {
@@ -1316,6 +1376,7 @@ fn render_gutter(
             "new-gutter"
         })
         .flex_shrink_0()
+        .relative()
         .w(code.gutter_width)
         .pr_1()
         .when(hover, |this| {
@@ -1338,8 +1399,8 @@ fn render_gutter(
                     .items_center()
                     .justify_end()
                     .text_size(code.font_size)
-                    .text_color(cx.theme().muted_foreground)
-                    .hover(|this| this.text_color(cx.theme().foreground))
+                    .text_color(changed_color.unwrap_or(cx.theme().muted_foreground))
+                    .hover(|this| this.text_color(changed_color.unwrap_or(cx.theme().foreground)))
                     .role(gpui::accesskit::Role::Button)
                     .aria_label(
                         t!(
@@ -1369,6 +1430,37 @@ fn render_gutter(
                     }),
             )
         })
+        .when_some(expanded_fold, |this, pairs| {
+            let state = code.state.clone();
+            this.child(
+                div()
+                    .id(("collapse-context", pairs.start))
+                    .test_support()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .w(code.rem)
+                    .h(code.row_height)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .cursor_pointer()
+                    .rounded_sm()
+                    .text_color(cx.theme().muted_foreground)
+                    .hover(|this| {
+                        this.bg(cx.theme().list_hover)
+                            .text_color(cx.theme().foreground)
+                    })
+                    .role(gpui::accesskit::Role::Button)
+                    .aria_label(t!("Diff.CollapseLines", count = pairs.len()).to_string())
+                    .child(Icon::new(IconName::ChevronDown).xsmall())
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                    .on_click(move |_, _, cx| {
+                        cx.stop_propagation();
+                        state.update(cx, |state, cx| state.collapse_fold(file, pairs.clone(), cx));
+                    }),
+            )
+        })
         .into_any_element()
 }
 
@@ -1387,6 +1479,7 @@ fn render_cell(
     ix: Option<usize>,
     other_ix: Option<usize>,
     changed: bool,
+    expanded_fold: Option<Range<usize>>,
     code: Rc<CodePresentation>,
     window: &mut Window,
     cx: &mut App,
@@ -1419,6 +1512,7 @@ fn render_cell(
         side,
         ix,
         changed,
+        expanded_fold,
         code.clone(),
         [Some((side, Some(ix))), None],
         cx,
@@ -1436,6 +1530,7 @@ fn render_unified_cell(
     ix: usize,
     pair: (Option<usize>, Option<usize>),
     changed: bool,
+    expanded_fold: Option<Range<usize>>,
     code: Rc<CodePresentation>,
     window: &mut Window,
     cx: &mut App,
@@ -1486,6 +1581,7 @@ fn render_unified_cell(
             side,
             ix,
             changed,
+            expanded_fold,
             code.clone(),
             gutters,
             cx,
@@ -1591,11 +1687,13 @@ fn add_annotation_button(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn code_line(
     file: usize,
     side: DiffSide,
     ix: usize,
     changed: bool,
+    expanded_fold: Option<Range<usize>>,
     code: Rc<CodePresentation>,
     gutters: [Option<(DiffSide, Option<usize>)>; 2],
     cx: &mut App,
@@ -1692,9 +1790,7 @@ fn code_line(
                 (true, DiffSide::Original) => "−",
                 (true, DiffSide::Modified) => "+",
             }),
-        DiffChangeIndicator::Bars => div().w_4().h_full().flex_shrink_0().when(changed, |this| {
-            this.child(div().w(px(3.)).h_full().bg(status))
-        }),
+        DiffChangeIndicator::Bars => div().w_2().flex_shrink_0(),
         DiffChangeIndicator::None => div().w_2().flex_shrink_0(),
     };
     let hover_line = matches!(
@@ -1706,6 +1802,16 @@ fn code_line(
     h_flex()
         .id("line-row")
         .group("diff-line")
+        .when(
+            matches!(code.change_indicator, DiffChangeIndicator::Bars),
+            |this| {
+                this.border_l(px(3.)).border_color(if changed {
+                    status
+                } else {
+                    cx.theme().transparent
+                })
+            },
+        )
         .relative()
         .w_full()
         .px_2()
@@ -1739,7 +1845,18 @@ fn code_line(
                 gutters
                     .into_iter()
                     .flatten()
-                    .map(|(side, ix)| render_gutter(file, side, ix, &code, cx)),
+                    .enumerate()
+                    .map(|(gutter, (side, ix))| {
+                        render_gutter(
+                            file,
+                            side,
+                            ix,
+                            changed.then_some(status),
+                            (gutter == 0).then(|| expanded_fold.clone()).flatten(),
+                            &code,
+                            cx,
+                        )
+                    }),
             )
         })
         .child(indicator)

@@ -48,6 +48,8 @@ pub(crate) enum DisplayRow {
         original: Option<usize>,
         modified: Option<usize>,
         changed: bool,
+        /// The original fold restored by the disclosure on this source row.
+        expanded_fold: Option<Range<usize>>,
     },
 }
 
@@ -513,6 +515,13 @@ impl DiffState {
         self.collapsed.contains(path)
     }
 
+    /// Whether unchanged context still has any collapsed disclosure.
+    pub fn has_collapsed_context(&self) -> bool {
+        self.rows
+            .iter()
+            .any(|row| matches!(row, DisplayRow::Fold { .. }))
+    }
+
     pub(crate) fn rows(&self) -> &Rc<Vec<DisplayRow>> {
         &self.rows
     }
@@ -824,6 +833,29 @@ impl DiffState {
         }
     }
 
+    /// Hides this context segment, preserving disclosures in other segments.
+    pub(crate) fn collapse_fold(
+        &mut self,
+        file: usize,
+        pairs: Range<usize>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(expanded) = self.expanded.get_mut(file) {
+            *expanded = expanded
+                .iter()
+                .flat_map(|range| {
+                    let before = range.start..range.end.min(pairs.start);
+                    let after = range.start.max(pairs.end)..range.end;
+                    [before, after]
+                        .into_iter()
+                        .filter(|range| !range.is_empty())
+                })
+                .collect();
+            self.rebuild_at_anchor();
+            cx.notify();
+        }
+    }
+
     /// Resolves a conflict from its heading and reports the user's change.
     pub(crate) fn choose_conflict(
         &mut self,
@@ -1019,6 +1051,7 @@ impl DiffState {
         if self.layout.is_some() {
             self.list.remeasure();
         }
+        self.horizontal_scroll.set_offset(point(px(0.), px(0.)));
         self.layout = Some(key);
         self.row_height = Some(row_height);
         self.apply_row_height_hint();
@@ -1307,6 +1340,7 @@ impl DiffState {
                     original: None,
                     modified: Some(line),
                     changed: false,
+                    expanded_fold: None,
                 }));
             } else if file.status() == DiffFileStatus::Conflicted {
                 let resolutions = (0..file.conflicts().len())
@@ -1322,7 +1356,14 @@ impl DiffState {
                     self.min_collapsed_lines,
                     &self.expanded[ix],
                 );
-                project_conflicts(&mut rows, ix, file, &visible, &resolutions);
+                let folds = expanded_folds(
+                    file,
+                    self.context_lines,
+                    self.min_collapsed_lines,
+                    &self.expanded[ix],
+                    &visible,
+                );
+                project_conflicts(&mut rows, ix, file, &visible, &folds, &resolutions);
             } else {
                 project_file(
                     &mut rows,
@@ -1612,6 +1653,38 @@ fn visible_pairs(
     visible
 }
 
+/// Locate the first revealed row of each originally collapsed segment.
+/// Deriving this from the baseline also lets expand-all be undone per segment.
+fn expanded_folds(
+    document: &DiffFile,
+    context: Option<usize>,
+    min_collapsed_lines: usize,
+    expanded: &[Range<usize>],
+    visible: &[bool],
+) -> HashMap<usize, Range<usize>> {
+    let mut folds = HashMap::new();
+    if expanded.is_empty() {
+        return folds;
+    }
+    let baseline = visible_pairs(document, context, min_collapsed_lines, &[]);
+    let hunk_end = hunk_ends(document);
+    let mut ix = 0;
+    while ix < baseline.len() {
+        if baseline[ix] {
+            ix += 1;
+            continue;
+        }
+        let start = ix;
+        while ix < baseline.len() && ix < hunk_end[start] && !baseline[ix] {
+            ix += 1;
+        }
+        if let Some(first) = (start..ix).find(|&line| visible[line]) {
+            folds.insert(first, start..ix);
+        }
+    }
+    folds
+}
+
 fn project_file(
     rows: &mut Vec<DisplayRow>,
     file: usize,
@@ -1625,6 +1698,7 @@ fn project_file(
     let hunks = document.hunks();
     let hunk_end = hunk_ends(document);
     let visible = visible_pairs(document, context, min_collapsed_lines, expanded);
+    let folds = expanded_folds(document, context, min_collapsed_lines, expanded, &visible);
     let mut hunk_ix = 0;
     let mut ix = 0;
     while ix < pairs.len() {
@@ -1659,6 +1733,7 @@ fn project_file(
                         original: Some(original),
                         modified: None,
                         changed: true,
+                        expanded_fold: None,
                     });
                 }
             }
@@ -1669,6 +1744,7 @@ fn project_file(
                         original: None,
                         modified: Some(modified),
                         changed: true,
+                        expanded_fold: None,
                     });
                 }
             }
@@ -1679,6 +1755,7 @@ fn project_file(
                 original: pair.original(),
                 modified: pair.modified(),
                 changed: pair.is_changed(),
+                expanded_fold: folds.get(&ix).cloned(),
             });
             ix += 1;
         }
@@ -1692,6 +1769,7 @@ fn project_conflicts(
     file: usize,
     document: &DiffFile,
     visible: &[bool],
+    folds: &HashMap<usize, Range<usize>>,
     resolutions: &[Option<DiffConflictResolution>],
 ) {
     // Each line of a conflicted file is its own pair.
@@ -1700,6 +1778,7 @@ fn project_conflicts(
         original: None,
         modified: Some(line),
         changed,
+        expanded_fold: folds.get(&line).cloned(),
     };
     let conflicts = document.conflicts();
     let mut next = 0;
