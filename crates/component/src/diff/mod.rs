@@ -482,31 +482,36 @@ fn render_diff(
         let width = if soft_wrap {
             px(0.)
         } else {
-            measure_code_width(
-                state.files(),
-                font_size,
-                &font_family,
-                gutter_width,
-                mode,
-                window,
-                cx,
-            )
+            measure_code_width(state.files(), font_size, &font_family, window, cx)
         };
         state.set_content_width(width);
     }
     state.sync_annotations(&props.annotations.items);
-    let content_width = state.content_width().max(state.viewport().width);
+    // The viewport owns pane geometry. Intrinsic source width is only used
+    // by each cell's horizontal scroller, never by the split layout.
+    let content_width = state.viewport().width;
     let column_width = if mode == DiffMode::Split {
         content_width / 2.
     } else {
         content_width
     };
+    // With an external file header, a single split file owns the entire viewport,
+    // including the blank space below a short patch. Multi-file views keep their
+    // row separators so headers and single-column files can span the full width.
+    let viewport_divider = mode == DiffMode::Split
+        && !props.header_visible
+        && matches!(state.files(), [file] if !file.is_single_column()
+            && !file.hunks().is_empty()
+            && !state.is_file_collapsed(file.path()));
     let code = Rc::new(CodePresentation {
         files: state.files().to_vec(),
         presentations: state.presentations().to_vec(),
         mode,
         content_width,
         column_width,
+        viewport_divider,
+        text_width: state.content_width(),
+        horizontal: state.horizontal_scroll().clone(),
         font_size,
         row_height,
         gutter_width,
@@ -550,10 +555,7 @@ fn render_diff(
             div()
                 .id("diff-horizontal")
                 .size_full()
-                // Preserve offset tracking and clipping without GPUI's
-                // single-axis wheel remapping. The sibling mask owns X input.
-                .when(!soft_wrap, |this| this.overflow_x_hidden())
-                .track_scroll(&horizontal)
+                .overflow_hidden()
                 .child(gpui_base::ScrollBounce::new(
                     "diff-bounce",
                     &scrollbar,
@@ -574,6 +576,21 @@ fn render_diff(
             state.selection().clone(),
             state.geometry().clone(),
         ))
+        .when(viewport_divider, |this| {
+            let width = px(1. / window.scale_factor());
+            this.child(
+                div()
+                    .id("diff-pane-divider")
+                    .test_support()
+                    .absolute()
+                    .top_0()
+                    .bottom_0()
+                    .left(gpui::relative(0.5))
+                    .ml(-width)
+                    .w(width)
+                    .bg(cx.theme().border),
+            )
+        })
         .when(has_rows && !soft_wrap, |this| {
             this.child(
                 ScrollableMask::new(Axis::Horizontal, &horizontal).id("diff-horizontal-wheel"),
@@ -582,7 +599,10 @@ fn render_diff(
         .when(has_rows, |this| {
             this.child(Scrollbar::vertical(&scrollbar))
                 .when(!soft_wrap, |this| {
-                    this.child(Scrollbar::horizontal(&horizontal))
+                    this.child(Scrollbar::horizontal(&PaneScrollbar {
+                        source: horizontal.clone(),
+                        rows: scrollbar.clone(),
+                    }))
                 })
         })
         // A line-number drag may finish anywhere, including outside the body.
@@ -696,8 +716,7 @@ fn render_diff(
                             let painted = if soft_wrap {
                                 px(0.)
                             } else {
-                                let painted = state.geometry().borrow().painted_width();
-                                code_width(painted, gutter_width, rem, mode)
+                                state.geometry().borrow().painted_width()
                             };
                             if state.record_paint(bounds.size, painted) || rehinted {
                                 cx.notify();
@@ -739,12 +758,39 @@ fn body_focused(state: &DiffState, window: &Window, cx: &mut Context<DiffState>)
     }
 }
 
+// Text cells supply the scroll range, while the whole diff viewport supplies
+// scrollbar placement. Using a cell's bounds would put the bar over a code row.
+#[derive(Clone)]
+struct PaneScrollbar {
+    source: gpui::ScrollHandle,
+    rows: gpui::ListState,
+}
+
+impl gpui_base::ScrollbarHandle for PaneScrollbar {
+    fn viewport_bounds(&self) -> gpui::Bounds<Pixels> {
+        self.rows.viewport_bounds()
+    }
+    fn offset(&self) -> gpui::Point<Pixels> {
+        self.source.offset()
+    }
+    fn set_offset(&self, offset: gpui::Point<Pixels>) {
+        self.source.set_offset(offset);
+    }
+    fn content_size(&self) -> gpui::Size<Pixels> {
+        let viewport = self.rows.viewport_bounds().size;
+        gpui::size(viewport.width + self.source.max_offset().x, viewport.height)
+    }
+}
+
 struct CodePresentation {
     files: Vec<DiffFile>,
     presentations: Vec<Option<Arc<FilePresentation>>>,
     mode: DiffMode,
     content_width: Pixels,
     column_width: Pixels,
+    viewport_divider: bool,
+    text_width: Pixels,
+    horizontal: gpui::ScrollHandle,
     font_size: Pixels,
     row_height: Pixels,
     gutter_width: Pixels,
@@ -788,23 +834,12 @@ impl CodePresentation {
     }
 }
 
-/// Total row width for code of `width` in the current mode.
-fn code_width(width: Pixels, gutter_width: Pixels, rem: Pixels, mode: DiffMode) -> Pixels {
-    if mode == DiffMode::Split {
-        (width + gutter_width + rem * 2.) * 2.
-    } else {
-        width + gutter_width * 2. + rem * 2.
-    }
-}
-
 /// Estimates content width from the lines widest in display cells, then
 /// shapes those candidates with the code font for resolved geometry.
 fn measure_code_width(
     files: &[DiffFile],
     font_size: Pixels,
     family: &SharedString,
-    gutter_width: Pixels,
-    mode: DiffMode,
     window: &mut Window,
     cx: &App,
 ) -> Pixels {
@@ -854,7 +889,7 @@ fn measure_code_width(
                 .width
         })
         .fold(px(0.), Pixels::max);
-    code_width(width, gutter_width, window.rem_size(), mode)
+    width
 }
 
 fn render_row(
@@ -1360,9 +1395,10 @@ fn render_cell(
         .w(code.column_width)
         .min_w_0()
         .flex_shrink_0()
-        .when(side == DiffSide::Original, |this| {
-            this.border_r_1().border_color(cx.theme().border)
-        })
+        .when(
+            side == DiffSide::Original && !code.viewport_divider,
+            |this| this.border_r_1().border_color(cx.theme().border),
+        )
         .when(ix.is_none(), |this| {
             this.bg(cx.theme().muted.opacity(0.3))
                 .child(div().h(code.row_height))
@@ -1615,11 +1651,13 @@ fn code_line(
     };
     // A block container gives wrapped text a definite width to break at.
     let text = div()
+        .id("code-content")
+        .test_support()
         .map(|this| {
             if code.soft_wrap {
                 this.w_full()
             } else {
-                this.flex().flex_row().flex_shrink_0()
+                this.flex().flex_row().flex_shrink_0().w(code.text_width)
             }
         })
         .children(ranges.into_iter().enumerate().map(|(chunk_ix, range)| {
@@ -1709,12 +1747,12 @@ fn code_line(
             div()
                 .id("source")
                 .test_support()
-                .map(|this| {
-                    if code.soft_wrap {
-                        this.flex_1().min_w_0()
-                    } else {
-                        this.flex_shrink_0()
-                    }
+                .flex_1()
+                .min_w_0()
+                .when(!code.soft_wrap, |this| {
+                    // Every visible source cell has the same intrinsic width
+                    // and shares its X offset; the surrounding panes stay fixed.
+                    this.overflow_x_hidden().track_scroll(&code.horizontal)
                 })
                 .role(gpui::accesskit::Role::Label)
                 .aria_label(source_line.text().clone())

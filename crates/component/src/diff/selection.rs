@@ -30,6 +30,7 @@ pub(crate) struct CodeRun {
     display_range: Range<usize>,
     layout: TextLayout,
     bounds: Bounds<Pixels>,
+    visible_bounds: Bounds<Pixels>,
     document: DiffFile,
 }
 
@@ -100,9 +101,13 @@ impl SelectionGeometry {
         let side = side.or_else(|| {
             self.runs
                 .iter()
+                .filter(|run| {
+                    run.visible_bounds.size.width > px(0.)
+                        && run.visible_bounds.size.height > px(0.)
+                })
                 .min_by(|a, b| {
-                    distance_to_bounds(point, a.bounds)
-                        .total_cmp(&distance_to_bounds(point, b.bounds))
+                    distance_to_bounds(point, a.visible_bounds)
+                        .total_cmp(&distance_to_bounds(point, b.visible_bounds))
                 })
                 .map(|run| run.side)
         })?;
@@ -318,6 +323,7 @@ impl Element for CodeText {
             display_range: self.range.clone(),
             layout: text.layout().clone(),
             bounds,
+            visible_bounds: bounds.intersect(&window.content_mask().bounds),
             document: self.document.clone(),
         });
     }
@@ -489,7 +495,7 @@ impl Element for SelectionLayer {
             .borrow()
             .runs
             .iter()
-            .map(|run| run.bounds)
+            .map(|run| run.visible_bounds)
             .collect();
         self.selection.register(
             TextSelectionRegistration::new(hitbox.clone(), bounds)
@@ -518,15 +524,14 @@ impl Element for SelectionLayer {
             .iter()
             .map(|run| {
                 let text = run.document.lines(run.side)[run.line_ix].chunk_text(&run.display_range);
-                TextSelectionRun::new(text, run.layout.clone(), run.bounds).with_document_order(
-                    encode_key(
+                TextSelectionRun::new(text, run.layout.clone(), run.visible_bounds)
+                    .with_document_order(encode_key(
                         run.file,
                         run.side,
                         run.document.lines(run.side)[run.line_ix].source().start
                             + run.document.lines(run.side)[run.line_ix]
                                 .source_offset(run.display_range.start),
-                    ),
-                )
+                    ))
             })
             .collect::<Vec<_>>();
         self.selection.update_runs(&runs, cx);
