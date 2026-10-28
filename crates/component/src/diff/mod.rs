@@ -709,8 +709,8 @@ fn render_diff(
             gpui::canvas(
                 {
                     let state = cx.entity();
-                    move |bounds, _, cx| {
-                        state.update(cx, |state, cx| {
+                    move |bounds, window, cx| {
+                        let changed = state.update(cx, |state, _| {
                             // Runs after the list's prepaint, which drops
                             // every row height when its width changes.
                             let rehinted = state.keep_row_height_hint();
@@ -721,10 +721,17 @@ fn render_diff(
                             } else {
                                 state.geometry().borrow().painted_width()
                             };
-                            if state.record_paint(bounds.size, painted) || rehinted {
-                                cx.notify();
-                            }
+                            state.record_paint(bounds.size, painted) || rehinted
                         });
+                        if changed {
+                            // Notifications during prepaint do not schedule a frame.
+                            // Deliver after drawing so the measured viewport and row
+                            // heights take effect even when no further input arrives.
+                            let state = state.clone();
+                            window.defer(cx, move |_, cx| {
+                                state.update(cx, |_, cx| cx.notify());
+                            });
+                        }
                     }
                 },
                 |_, _, _, _| {},
