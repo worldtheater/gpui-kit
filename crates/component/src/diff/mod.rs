@@ -173,6 +173,8 @@ impl DiffAnnotation {
     }
 }
 
+type ChangeBackgroundOpacity = Rc<dyn Fn(&DiffLinePosition, &App) -> f32>;
+
 type GutterActionRenderer = Rc<dyn Fn(&DiffLinePosition, DiffSide, &mut App) -> AnyElement>;
 
 type LineActionRenderer = Rc<dyn Fn(&DiffLinePosition, &mut App) -> AnyElement>;
@@ -216,6 +218,7 @@ pub struct Diff {
     hunk_separator: DiffHunkSeparator,
     change_indicator: DiffChangeIndicator,
     change_background: bool,
+    change_background_opacity: Option<ChangeBackgroundOpacity>,
     soft_wrap: bool,
     header: HeaderSlots,
     annotations: Rc<Annotations>,
@@ -248,6 +251,7 @@ impl Diff {
             hunk_separator: DiffHunkSeparator::default(),
             change_indicator: DiffChangeIndicator::default(),
             change_background: true,
+            change_background_opacity: None,
             soft_wrap: false,
             header: HeaderSlots::default(),
             annotations: Rc::default(),
@@ -331,6 +335,20 @@ impl Diff {
         self.change_background = value;
         self
     }
+
+    /// Scales changed-line and inline-change backgrounds at a source position.
+    ///
+    /// The callback returns a factor from zero to one (clamped). This lets a host
+    /// soften reviewed changes without removing their diff semantics, syntax,
+    /// selection, or gutter controls. The default factor is one.
+    pub fn change_background_opacity<F>(mut self, opacity: F) -> Self
+    where
+        F: Fn(&DiffLinePosition, &App) -> f32 + 'static,
+    {
+        self.change_background_opacity = Some(Rc::new(opacity));
+        self
+    }
+
     /// Wraps long lines at the column width instead of scrolling horizontally.
     /// Default is false.
     pub fn soft_wrap(mut self, value: bool) -> Self {
@@ -575,6 +593,7 @@ fn render_diff(
         hunk_separator: props.hunk_separator,
         change_indicator: props.change_indicator,
         change_background: props.change_background,
+        change_background_opacity: props.change_background_opacity,
         soft_wrap,
         header: props.header,
         annotations: props.annotations.clone(),
@@ -864,6 +883,7 @@ struct CodePresentation {
     hunk_separator: DiffHunkSeparator,
     change_indicator: DiffChangeIndicator,
     change_background: bool,
+    change_background_opacity: Option<ChangeBackgroundOpacity>,
     soft_wrap: bool,
     header: HeaderSlots,
     annotations: Rc<Annotations>,
@@ -1713,6 +1733,7 @@ fn line_highlights(
     changed: bool,
     selected: bool,
     status: Hsla,
+    opacity: f32,
     code: &CodePresentation,
     cx: &App,
 ) -> Vec<(std::ops::Range<usize>, HighlightStyle)> {
@@ -1729,7 +1750,7 @@ fn line_highlights(
             (
                 range,
                 HighlightStyle {
-                    background_color: Some(status.opacity(0.3)),
+                    background_color: Some(status.opacity(0.3 * opacity)),
                     ..Default::default()
                 },
             )
@@ -1837,7 +1858,18 @@ fn code_line(
                 .iter()
                 .flatten()
                 .any(|(side, ix)| ix.is_some_and(|ix| code.is_selected(file, *side, ix))));
-    let highlights = line_highlights(file, side, ix, changed, selected, status, &code, cx);
+    let opacity = if changed {
+        code.change_background_opacity
+            .as_ref()
+            .map_or(1., |opacity| {
+                opacity(&code.position(file, side, ix), cx).clamp(0., 1.)
+            })
+    } else {
+        1.
+    };
+    let highlights = line_highlights(
+        file, side, ix, changed, selected, status, opacity, &code, cx,
+    );
     // An unchanged Unified row shows one source line for both sides; follow
     // the side a text selection started on so its offsets stay consistent.
     let (text_side, text_ix) = if code.mode == DiffMode::Unified
@@ -1948,7 +1980,7 @@ fn code_line(
         .text_size(code.font_size)
         .line_height(code.row_height)
         .when(changed && code.change_background, |this| {
-            this.bg(status.opacity(0.12))
+            this.bg(status.opacity(0.12 * opacity))
         })
         .when(selected, |this| this.bg(cx.theme().selection))
         .when(hover_line && !selected, |this| {

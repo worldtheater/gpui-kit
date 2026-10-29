@@ -360,6 +360,8 @@ aliases for the corresponding `render_*` builders.
 
 ## Line actions
 
+`change_background_opacity(|position, cx| factor)` scales changed-line and inline-change backgrounds at a source position. Return a factor between 0 and 1 (clamped); the default is 1. This can soften reviewed changes while retaining their content, diff blocks, syntax colors, selection, and actions. The host owns review state; the callback does not change the document.
+
 `render_gutter_actions(render)` places compact controls in the existing disclosure
 space to the left of line numbers, without widening the source-text inset. Its
 callback receives a real `DiffLinePosition`, the target `DiffSide` gutter and the

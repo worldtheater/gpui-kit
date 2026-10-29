@@ -305,6 +305,8 @@ Diff::new(&self.diff)
 
 ## Line actions
 
+`change_background_opacity(|position, cx| factor)` 按源位置调整变更行底色与行内强调的透明度。返回 0 到 1 的系数（超出范围会截断），默认为 1。应用可据此减淡已确认的改动，同时保留内容、改动块、语法颜色、选择和操作。确认状态由应用管理；该回调不会修改文档。
+
 `render_gutter_actions(render)` 将紧凑操作放在行号左侧已有的展开／收起区域，
 不增加代码正文的缩进。回调接收真实的 `DiffLinePosition`、目标行号栏的
 `DiffSide` 和应用上下文。新增／删除行的空白一侧使用另一侧的源位置。
