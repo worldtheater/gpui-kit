@@ -298,6 +298,12 @@ Diff::new(&self.diff)
 
 ## Line actions
 
+`render_gutter_actions(render)` 将紧凑操作放在行号左侧已有的展开／收起区域，
+不增加代码正文的缩进。回调接收真实的 `DiffLinePosition`、目标行号栏的
+`DiffSide` 和应用上下文。新增／删除行的空白一侧使用另一侧的源位置。
+应用在改动块起始位置以外返回空元素；已展开上下文的收起按钮优先。
+隐藏行号文字时仍保留操作区域。Git 写入与确认流程由应用负责。
+
 `render_line_actions(width, render)` 在两种布局的行号后预留固定宽度的操作区域。
 渲染回调接收 `DiffLinePosition` 和 `App`，由应用返回按钮、复选框等控件；
 没有操作的行返回空元素。宽度应根据窗口的 rem 大小计算，宽度变化会使自动换行的

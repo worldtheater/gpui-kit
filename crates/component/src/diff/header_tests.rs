@@ -22,6 +22,7 @@ fn test_diff_builder(cx: &mut TestAppContext) {
     assert!(defaults.header.content.is_none());
     assert!(defaults.annotation_content.is_none());
     assert!(defaults.line_actions.is_none());
+    assert!(defaults.gutter_actions.is_none());
     assert_eq!(defaults.line_action_width, gpui::px(0.));
 
     let header_calls = Rc::new(RefCell::new(Vec::new()));
@@ -30,6 +31,7 @@ fn test_diff_builder(cx: &mut TestAppContext) {
     let annotation_calls = Rc::new(RefCell::new(Vec::new()));
     let line_calls = Rc::new(RefCell::new(Vec::new()));
     let diff = Diff::new(&state)
+        .render_gutter_actions(|_, _, _| div())
         .render_line_actions(gpui::px(32.), {
             let line_calls = line_calls.clone();
             move |position, _| {
@@ -71,6 +73,7 @@ fn test_diff_builder(cx: &mut TestAppContext) {
     assert_eq!(diff.annotations.lines[&position], [0]);
 
     assert_eq!(diff.line_action_width, gpui::px(32.));
+    assert!(diff.gutter_actions.is_some());
 
     // Existing consumers keep the original builder spellings.
     let compatibility = Diff::new(&state)

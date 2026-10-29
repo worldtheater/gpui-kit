@@ -351,6 +351,15 @@ aliases for the corresponding `render_*` builders.
 
 ## Line actions
 
+`render_gutter_actions(render)` places compact controls in the existing disclosure
+space to the left of line numbers, without widening the source-text inset. Its
+callback receives a real `DiffLinePosition`, the target `DiffSide` gutter and the
+app context. For an empty side of an added/deleted row, the position comes from
+the other side. Return an empty element outside the intended block anchors;
+expanded context disclosures take precedence. Hiding line-number labels keeps
+the gutter available for these controls. Git mutations and confirmations remain
+application-owned.
+
 `render_line_actions(width, render)` reserves a fixed-width lane after the line
 numbers in both layouts. The renderer receives a `DiffLinePosition` and `App`;
 return application-owned buttons or checkboxes, or an empty element for lines

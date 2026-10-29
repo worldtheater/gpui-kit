@@ -173,6 +173,8 @@ impl DiffAnnotation {
     }
 }
 
+type GutterActionRenderer = Rc<dyn Fn(&DiffLinePosition, DiffSide, &mut App) -> AnyElement>;
+
 type LineActionRenderer = Rc<dyn Fn(&DiffLinePosition, &mut App) -> AnyElement>;
 
 type FileRenderer = Rc<dyn Fn(&DiffFile, &mut Window, &mut App) -> AnyElement>;
@@ -220,6 +222,7 @@ pub struct Diff {
     annotation_content: Option<AnnotationRenderer>,
     line_action_width: Pixels,
     line_actions: Option<LineActionRenderer>,
+    gutter_actions: Option<GutterActionRenderer>,
     on_add_annotation: Option<RangeHandler>,
     on_line_click: Option<ClickHandler>,
     on_line_hover: Option<HoverHandler>,
@@ -251,6 +254,7 @@ impl Diff {
             annotation_content: None,
             line_action_width: px(0.),
             line_actions: None,
+            gutter_actions: None,
             on_add_annotation: None,
             on_line_click: None,
             on_line_hover: None,
@@ -270,6 +274,24 @@ impl Diff {
         self.line_action_width = width.max(px(0.));
         self.line_actions = Some(Rc::new(move |position, cx| {
             render(position, cx).into_any_element()
+        }));
+        self
+    }
+
+    /// Renders compact controls in the existing disclosure space left of line numbers.
+    ///
+    /// The callback receives a real source position and the gutter side being rendered.
+    /// On an empty side of an added/deleted row, the position comes from its counterpart.
+    /// Return an empty element for rows without actions. Expanded context disclosures
+    /// take precedence. The gutter remains available when line-number labels are hidden.
+    /// This does not reserve an extra lane between line numbers and source text.
+    pub fn render_gutter_actions<F, E>(mut self, render: F) -> Self
+    where
+        F: Fn(&DiffLinePosition, DiffSide, &mut App) -> E + 'static,
+        E: IntoElement,
+    {
+        self.gutter_actions = Some(Rc::new(move |position, side, cx| {
+            render(position, side, cx).into_any_element()
         }));
         self
     }
@@ -488,7 +510,8 @@ fn render_diff(
         .map(|file| file.line_number_digits())
         .max()
         .unwrap_or(1);
-    let gutter_width = if props.line_number {
+    let show_gutter = props.line_number || props.gutter_actions.is_some();
+    let gutter_width = if show_gutter {
         // Reserve a disclosure slot even when collapsed so code never shifts.
         font_size * 0.7 * digits as f32 + rem * 2.
     } else {
@@ -501,7 +524,7 @@ fn render_diff(
         font_size,
         font_family.clone(),
         mode,
-        props.line_number,
+        show_gutter,
         soft_wrap,
     )
     .with_line_action_width(props.line_action_width);
@@ -558,6 +581,7 @@ fn render_diff(
         annotation_content: props.annotation_content,
         line_action_width: props.line_action_width,
         line_actions: props.line_actions,
+        gutter_actions: props.gutter_actions,
         on_add_annotation: props.on_add_annotation,
         on_line_click: props.on_line_click,
         on_line_hover: props.on_line_hover,
@@ -846,6 +870,7 @@ struct CodePresentation {
     annotation_content: Option<AnnotationRenderer>,
     line_action_width: Pixels,
     line_actions: Option<LineActionRenderer>,
+    gutter_actions: Option<GutterActionRenderer>,
     on_add_annotation: Option<RangeHandler>,
     on_line_click: Option<ClickHandler>,
     on_line_hover: Option<HoverHandler>,
@@ -1392,15 +1417,25 @@ fn render_notice(file: &DiffFile, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_gutter(
     file: usize,
     side: DiffSide,
     ix: Option<usize>,
+    row_position: &DiffLinePosition,
     changed_color: Option<Hsla>,
     expanded_fold: Option<Range<usize>>,
     code: &CodePresentation,
-    cx: &App,
+    cx: &mut App,
 ) -> AnyElement {
+    let actions = expanded_fold
+        .is_none()
+        .then_some(code.gutter_actions.as_ref())
+        .flatten()
+        .map(|render| {
+            let position = ix.map(|ix| code.position(file, side, ix));
+            render(position.as_ref().unwrap_or(row_position), side, cx)
+        });
     let hover = matches!(
         code.hover_highlight,
         DiffHoverHighlight::LineNumber | DiffHoverHighlight::Both
@@ -1414,11 +1449,12 @@ fn render_gutter(
         .flex_shrink_0()
         .relative()
         .w(code.gutter_width)
+        .h(code.row_height)
         .pr_1()
         .when(hover, |this| {
             this.hover(|this| this.bg(cx.theme().list_hover))
         })
-        .when_some(ix, |this, ix| {
+        .when_some(ix.filter(|_| code.line_number), |this, ix| {
             let position = code.position(file, side, ix);
             let down = code.state.clone();
             let moved = code.state.clone();
@@ -1464,6 +1500,18 @@ fn render_gutter(
                             })
                         }
                     }),
+            )
+        })
+        .when_some(actions, |this, actions| {
+            this.child(
+                h_flex()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .w(code.rem)
+                    .h(code.row_height)
+                    .justify_center()
+                    .child(actions),
             )
         })
         .when_some(expanded_fold, |this, pairs| {
@@ -1528,12 +1576,42 @@ fn render_cell(
             side == DiffSide::Original && !code.viewport_divider,
             |this| this.border_r_1().border_color(cx.theme().border),
         )
-        .when(ix.is_none(), |this| {
-            this.bg(cx.theme().muted.opacity(0.3))
-                .child(div().h(code.row_height))
-        });
+        .when(ix.is_none(), |this| this.bg(cx.theme().muted.opacity(0.3)));
     let Some(ix) = ix else {
-        return cell.into_any_element();
+        return cell
+            .id((
+                if side == DiffSide::Original {
+                    "old-empty"
+                } else {
+                    "new-empty"
+                },
+                other_ix.unwrap_or(0),
+            ))
+            .child(
+                h_flex()
+                    .h(code.row_height)
+                    .px_2()
+                    .when(
+                        matches!(code.change_indicator, DiffChangeIndicator::Bars),
+                        |row| row.border_l(px(3.)).border_color(cx.theme().transparent),
+                    )
+                    .when_some(
+                        other_ix.filter(|_| code.gutter_actions.is_some()),
+                        |row, other_ix| {
+                            row.child(render_gutter(
+                                file,
+                                side,
+                                None,
+                                &code.position(file, side.other(), other_ix),
+                                None,
+                                None,
+                                &code,
+                                cx,
+                            ))
+                        },
+                    ),
+            )
+            .into_any_element();
     };
     cell.id((
         if side == DiffSide::Original {
@@ -1807,7 +1885,7 @@ fn code_line(
                 code.geometry.clone(),
             )
         }));
-    let gutters_width = if code.line_number {
+    let gutters_width = if code.line_number || code.gutter_actions.is_some() {
         code.gutter_width * gutters.iter().flatten().count() as f32
     } else {
         px(0.)
@@ -1882,7 +1960,7 @@ fn code_line(
                 handler(hovered.then_some(&position), window, cx)
             })
         })
-        .when(code.line_number, |this| {
+        .when(code.line_number || code.gutter_actions.is_some(), |this| {
             this.children(
                 gutters
                     .into_iter()
@@ -1893,6 +1971,7 @@ fn code_line(
                             file,
                             side,
                             ix,
+                            &position,
                             changed.then_some(status),
                             (gutter == 0).then(|| expanded_fold.clone()).flatten(),
                             &code,
