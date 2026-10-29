@@ -349,6 +349,17 @@ The earlier names `header`, `header_prefix`, `header_title_suffix`,
 `header_suffix` and `annotation_content` remain available as compatibility
 aliases for the corresponding `render_*` builders.
 
+## Line actions
+
+`render_line_actions(width, render)` reserves a fixed-width lane after the line
+numbers in both layouts. The renderer receives a `DiffLinePosition` and `App`;
+return application-owned buttons or checkboxes, or an empty element for lines
+without an action. Resolve the width from the window's rem size. Changing the
+width invalidates wrapped-row measurement. The slot is absent by default.
+
+The application owns permission checks, checked state, repository writes and
+refreshing the displayed patch. Diff does not stage changes or alter files.
+
 ## Annotations
 
 An annotation has a stable application ID and a target: a source line, or a

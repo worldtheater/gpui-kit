@@ -173,6 +173,8 @@ impl DiffAnnotation {
     }
 }
 
+type LineActionRenderer = Rc<dyn Fn(&DiffLinePosition, &mut App) -> AnyElement>;
+
 type FileRenderer = Rc<dyn Fn(&DiffFile, &mut Window, &mut App) -> AnyElement>;
 type AnnotationRenderer = Rc<dyn Fn(&DiffAnnotation, &mut Window, &mut App) -> AnyElement>;
 type RangeHandler = Rc<dyn Fn(&DiffLineRange, &mut Window, &mut App)>;
@@ -216,6 +218,8 @@ pub struct Diff {
     header: HeaderSlots,
     annotations: Rc<Annotations>,
     annotation_content: Option<AnnotationRenderer>,
+    line_action_width: Pixels,
+    line_actions: Option<LineActionRenderer>,
     on_add_annotation: Option<RangeHandler>,
     on_line_click: Option<ClickHandler>,
     on_line_hover: Option<HoverHandler>,
@@ -245,11 +249,31 @@ impl Diff {
             header: HeaderSlots::default(),
             annotations: Rc::default(),
             annotation_content: None,
+            line_action_width: px(0.),
+            line_actions: None,
             on_add_annotation: None,
             on_line_click: None,
             on_line_hover: None,
         }
     }
+    /// Renders application-owned controls beside each source line, after the line numbers.
+    ///
+    /// The fixed width is reserved on every code row in both layouts. Return an empty
+    /// element for lines without actions. Callbacks receive one-based source coordinates;
+    /// the application owns command policy, checked state and mutations. Omitting this
+    /// slot leaves the readonly surface unchanged.
+    pub fn render_line_actions<F, E>(mut self, width: Pixels, render: F) -> Self
+    where
+        F: Fn(&DiffLinePosition, &mut App) -> E + 'static,
+        E: IntoElement,
+    {
+        self.line_action_width = width.max(px(0.));
+        self.line_actions = Some(Rc::new(move |position, cx| {
+            render(position, cx).into_any_element()
+        }));
+        self
+    }
+
     /// Shows the original and modified line-number lanes. Default is true.
     pub fn line_number(mut self, value: bool) -> Self {
         self.line_number = value;
@@ -479,7 +503,8 @@ fn render_diff(
         mode,
         props.line_number,
         soft_wrap,
-    );
+    )
+    .with_line_action_width(props.line_action_width);
     if state.update_layout(layout, row_height) {
         // Wrapped rows take the viewport width instead of their longest line.
         let width = if soft_wrap {
@@ -531,6 +556,8 @@ fn render_diff(
         header: props.header,
         annotations: props.annotations.clone(),
         annotation_content: props.annotation_content,
+        line_action_width: props.line_action_width,
+        line_actions: props.line_actions,
         on_add_annotation: props.on_add_annotation,
         on_line_click: props.on_line_click,
         on_line_hover: props.on_line_hover,
@@ -817,6 +844,8 @@ struct CodePresentation {
     header: HeaderSlots,
     annotations: Rc<Annotations>,
     annotation_content: Option<AnnotationRenderer>,
+    line_action_width: Pixels,
+    line_actions: Option<LineActionRenderer>,
     on_add_annotation: Option<RangeHandler>,
     on_line_click: Option<ClickHandler>,
     on_line_hover: Option<HoverHandler>,
@@ -1804,8 +1833,14 @@ fn code_line(
         code.hover_highlight,
         DiffHoverHighlight::Line | DiffHoverHighlight::Both
     );
-    let add_button =
-        add_annotation_button(file, side, ix, gutters_width + code.rem / 2., &code, cx);
+    let add_button = add_annotation_button(
+        file,
+        side,
+        ix,
+        gutters_width + code.line_action_width + code.rem / 2.,
+        &code,
+        cx,
+    );
     h_flex()
         .id("line-row")
         .group("diff-line")
@@ -1864,6 +1899,16 @@ fn code_line(
                             cx,
                         )
                     }),
+            )
+        })
+        .when_some(code.line_actions.as_ref(), |row, render| {
+            row.child(
+                h_flex()
+                    .id("line-actions")
+                    .flex_none()
+                    .w(code.line_action_width)
+                    .h(code.row_height)
+                    .child(render(&position, cx)),
             )
         })
         .child(indicator)

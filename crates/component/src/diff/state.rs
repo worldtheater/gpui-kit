@@ -103,9 +103,15 @@ pub(crate) struct LayoutKey {
     mode: DiffMode,
     line_number: bool,
     soft_wrap: bool,
+    line_action_width: gpui::Pixels,
 }
 
 impl LayoutKey {
+    pub(crate) fn with_line_action_width(mut self, width: gpui::Pixels) -> Self {
+        self.line_action_width = width;
+        self
+    }
+
     pub(crate) fn new(
         rem: Pixels,
         font_size: Pixels,
@@ -121,6 +127,7 @@ impl LayoutKey {
             mode,
             line_number,
             soft_wrap,
+            line_action_width: gpui::px(0.),
         }
     }
 }

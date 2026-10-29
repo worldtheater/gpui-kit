@@ -296,6 +296,16 @@ Diff::new(&self.diff)
 原有的 `header`、`header_prefix`、`header_title_suffix`、`header_suffix` 和
 `annotation_content` 仍然可用，作为对应 `render_*` builder 的兼容别名。
 
+## Line actions
+
+`render_line_actions(width, render)` 在两种布局的行号后预留固定宽度的操作区域。
+渲染回调接收 `DiffLinePosition` 和 `App`，由应用返回按钮、复选框等控件；
+没有操作的行返回空元素。宽度应根据窗口的 rem 大小计算，宽度变化会使自动换行的
+行高测量失效并重新计算。默认不显示此区域。
+
+权限检查、勾选状态、仓库写入和补丁刷新均由应用负责。Diff 不会执行暂存或修改文件。
+
+
 ## 批注
 
 批注具有稳定的应用 ID 和目标：某个源文件行，或整个文件。评论内容与草稿状态由应用持有，

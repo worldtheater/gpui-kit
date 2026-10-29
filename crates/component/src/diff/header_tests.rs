@@ -21,12 +21,22 @@ fn test_diff_builder(cx: &mut TestAppContext) {
     assert!(defaults.annotations.items.is_empty());
     assert!(defaults.header.content.is_none());
     assert!(defaults.annotation_content.is_none());
+    assert!(defaults.line_actions.is_none());
+    assert_eq!(defaults.line_action_width, gpui::px(0.));
 
     let header_calls = Rc::new(RefCell::new(Vec::new()));
     let position = DiffLinePosition::new("after.rs", DiffSide::Modified, 1);
     let annotation = DiffAnnotation::line("review-comment", position.clone());
     let annotation_calls = Rc::new(RefCell::new(Vec::new()));
+    let line_calls = Rc::new(RefCell::new(Vec::new()));
     let diff = Diff::new(&state)
+        .render_line_actions(gpui::px(32.), {
+            let line_calls = line_calls.clone();
+            move |position, _| {
+                line_calls.borrow_mut().push(position.clone());
+                div().child("Stage")
+            }
+        })
         .header_visible(false)
         .line_number(false)
         .syntax_highlight(false)
@@ -60,6 +70,8 @@ fn test_diff_builder(cx: &mut TestAppContext) {
     assert_eq!(diff.annotations.items[0].position(), Some(&position));
     assert_eq!(diff.annotations.lines[&position], [0]);
 
+    assert_eq!(diff.line_action_width, gpui::px(32.));
+
     // Existing consumers keep the original builder spellings.
     let compatibility = Diff::new(&state)
         .header(|_, _, _| div().child("header"))
@@ -75,6 +87,7 @@ fn test_diff_builder(cx: &mut TestAppContext) {
 
     let window = cx.add_empty_window();
     window.update(|window, cx| {
+        let _ = diff.line_actions.as_ref().unwrap()(&position, cx);
         let render = diff.header.content.as_ref().unwrap();
         let _ = render(&document, window, cx);
         let render = diff.annotation_content.as_ref().unwrap();
@@ -84,5 +97,6 @@ fn test_diff_builder(cx: &mut TestAppContext) {
         header_calls.borrow().as_slice(),
         &[(Some("before.rs".into()), Some("after.rs".into()))]
     );
+    assert_eq!(line_calls.borrow().as_slice(), &[position.clone()]);
     assert_eq!(annotation_calls.borrow().as_slice(), &[position]);
 }
