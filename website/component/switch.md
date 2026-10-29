@@ -175,6 +175,7 @@ Switch::new("switch")
 
 Implements `Sizable` and `Disableable` traits:
 
+- `xsmall()` - Extra-small switch size (24x14px toggle area)
 - `small()` - Small switch size (28x16px toggle area)
 - `medium()` - Medium switch size (36x20px toggle area, default)
 - `with_size(size)` - Set explicit size

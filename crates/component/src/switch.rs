@@ -64,6 +64,12 @@ impl Switch {
         self
     }
 
+    /// Set the label position relative to the track. Defaults to `Side::Right`.
+    pub fn label_side(mut self, side: Side) -> Self {
+        self.label_side = side;
+        self
+    }
+
     /// Set the name a screen reader announces, when the visible label is not
     /// it.
     ///
@@ -192,12 +198,14 @@ impl RenderOnce for Switch {
         let disabled_label_color = cx.theme().muted_foreground;
 
         let (bg_width, bg_height) = match self.size {
-            Size::XSmall | Size::Small => (px(28.), px(16.)),
+            Size::XSmall => (px(24.), px(14.)),
+            Size::Small => (px(28.), px(16.)),
             Size::Large => (px(44.), px(24.)),
             _ => (px(36.), px(20.)),
         };
         let bar_width = match self.size {
-            Size::XSmall | Size::Small => px(12.),
+            Size::XSmall => px(10.),
+            Size::Small => px(12.),
             Size::Large => px(20.),
             _ => px(16.),
         };

@@ -166,6 +166,7 @@ Switch::new("switch")
 
 实现了 `Sizable` 和 `Disableable` trait：
 
+- `xsmall()` - 超小开关尺寸（24x14px 切换区域）
 - `small()`：小尺寸，开关区域约 `28x16px`
 - `medium()`：中尺寸，默认，开关区域约 `36x20px`
 - `with_size(size)`：显式设置尺寸
