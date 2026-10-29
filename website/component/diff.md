@@ -255,6 +255,14 @@ scrolling because their coordinates belong to the previous patch. State
 mutations notify observers; callers do not need an additional `cx.notify()` for
 the Diff state.
 
+`DiffState::refresh_files(files, stable_side, cx)` refreshes a related patch after
+an operation such as staging. It preserves revealed source lines and the viewport
+anchor's pixel offset within a wrapped row, using matching paths and unchanged
+text on `stable_side`. For example, staging keeps the modified working-tree side;
+unstaging keeps the original HEAD side. It clears text selection, retains horizontal
+scrolling, and lets unrelated files start fresh. Use `set_files` when switching to
+another document.
+
 ## Appearance
 
 Line numbers, syntax highlighting and file headers are enabled by default:
@@ -348,6 +356,7 @@ from its event handlers. Do not synchronously read or update the same
 The earlier names `header`, `header_prefix`, `header_title_suffix`,
 `header_suffix` and `annotation_content` remain available as compatibility
 aliases for the corresponding `render_*` builders.
+
 
 ## Line actions
 

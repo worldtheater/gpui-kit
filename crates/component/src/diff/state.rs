@@ -600,6 +600,92 @@ impl DiffState {
         cx.notify();
     }
 
+    /// Refreshes related patches while retaining visible source and its pixel offset.
+    ///
+    /// `stable_side` identifies the source version unchanged by the operation (for
+    /// example, the working tree when staging). Matching paths with identical source
+    /// on that side keep their revealed lines, including newly unchanged blocks.
+    /// Selection is cleared as in `set_files`; unrelated files start at the top.
+    pub fn refresh_files(
+        &mut self,
+        files: impl IntoIterator<Item = DiffFile>,
+        stable_side: DiffSide,
+        cx: &mut Context<Self>,
+    ) {
+        let files = files.into_iter().collect::<Vec<_>>();
+        let mut visible = files
+            .iter()
+            .filter_map(|file| {
+                let old = &self.files[self.file_ix(file.path())?];
+                (old.source(stable_side) == file.source(stable_side))
+                    .then(|| (file.path().clone(), HashSet::new()))
+            })
+            .collect::<HashMap<_, HashSet<usize>>>();
+        let top = self.list.logical_scroll_top();
+        let viewport = self.list.viewport_bounds();
+        let mut anchor = None;
+        for (row_ix, row) in self.rows.iter().enumerate() {
+            let DisplayRow::Code {
+                file,
+                original,
+                modified,
+                ..
+            } = row
+            else {
+                continue;
+            };
+            let ix = match stable_side {
+                DiffSide::Original => original,
+                DiffSide::Modified => modified,
+            };
+            let Some(ix) = *ix else {
+                continue;
+            };
+            let position = self.position(*file, stable_side, ix);
+            let Some(lines) = visible.get_mut(position.path()) else {
+                continue;
+            };
+            lines.insert(position.line());
+            if anchor.is_none()
+                && row_ix >= top.item_ix
+                && let Some(bounds) = self.list.bounds_for_item(row_ix)
+                && bounds.top() < viewport.bottom()
+            {
+                anchor = Some((position, viewport.top() - bounds.top()));
+            }
+        }
+        let horizontal = self.horizontal_scroll.offset();
+        self.set_files(files, cx);
+        for (file, expanded) in self.files.iter().zip(&mut self.expanded) {
+            let Some(lines) = visible.get(file.path()) else {
+                continue;
+            };
+            for (pair_ix, pair) in file.pairs().iter().enumerate() {
+                let ix = match stable_side {
+                    DiffSide::Original => pair.original(),
+                    DiffSide::Modified => pair.modified(),
+                };
+                if ix.is_some_and(|ix| lines.contains(&file.line_number(stable_side, ix))) {
+                    if let Some(last) = expanded.last_mut().filter(|range| range.end == pair_ix) {
+                        last.end += 1;
+                    } else {
+                        expanded.push(pair_ix..pair_ix + 1);
+                    }
+                }
+            }
+        }
+        self.rebuild(true);
+        if let Some((position, offset_in_item)) = anchor
+            && let Some(item_ix) = self.source_row(&position)
+        {
+            self.list.scroll_to(ListOffset {
+                item_ix,
+                offset_in_item,
+            });
+            self.horizontal_scroll.set_offset(horizontal);
+        }
+    }
+
     /// Changes the display mode while preserving source-line selection and a
     /// nearby source row.
     pub fn set_mode(&mut self, mode: DiffMode, cx: &mut Context<Self>) {
@@ -1057,8 +1143,8 @@ impl DiffState {
         }
         if self.layout.is_some() {
             self.list.remeasure();
+            self.horizontal_scroll.set_offset(point(px(0.), px(0.)));
         }
-        self.horizontal_scroll.set_offset(point(px(0.), px(0.)));
         self.layout = Some(key);
         self.row_height = Some(row_height);
         self.apply_row_height_hint();

@@ -219,6 +219,12 @@ self.diff.update(cx, |state, cx| {
 替换文件会重置展开状态、选区、冲突解决结果与滚动位置，因为这些坐标属于原先的 patch。
 状态修改方法会通知观察者，调用方不需要额外为 Diff 状态调用 `cx.notify()`。
 
+`DiffState::refresh_files(files, stable_side, cx)` 用于暂存等操作后的同一补丁刷新。
+它按相同路径和 `stable_side` 上未变化的源文本，保留已展开内容，以及视口锚点在
+折行内部的像素偏移。例如，暂存以新版工作区内容为基准，取消暂存以原版 HEAD
+内容为基准。刷新会清除文本选择、保留横向滚动；无关文件重新定位。
+切换到其他文档时仍使用 `set_files`。
+
 ## 外观
 
 行号、语法高亮和文件头默认开启：
@@ -295,6 +301,7 @@ Diff::new(&self.diff)
 
 原有的 `header`、`header_prefix`、`header_title_suffix`、`header_suffix` 和
 `annotation_content` 仍然可用，作为对应 `render_*` builder 的兼容别名。
+
 
 ## Line actions
 
