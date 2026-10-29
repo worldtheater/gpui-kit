@@ -212,6 +212,7 @@ pub struct Diff {
     state: Entity<DiffState>,
     style: StyleRefinement,
     line_number: bool,
+    line_number_selection: bool,
     syntax_highlight: bool,
     header_visible: bool,
     hover_highlight: DiffHoverHighlight,
@@ -245,6 +246,7 @@ impl Diff {
             state: state.clone(),
             style: StyleRefinement::default(),
             line_number: true,
+            line_number_selection: true,
             syntax_highlight: true,
             header_visible: true,
             hover_highlight: DiffHoverHighlight::default(),
@@ -303,6 +305,14 @@ impl Diff {
     /// Shows the original and modified line-number lanes. Default is true.
     pub fn line_number(mut self, value: bool) -> Self {
         self.line_number = value;
+        self
+    }
+
+    /// Allows clicks and drags on line numbers to select whole source lines.
+    /// Defaults to true. Disable this for action-only gutters; source text can
+    /// still be selected and copied normally.
+    pub fn line_number_selection(mut self, value: bool) -> Self {
+        self.line_number_selection = value;
         self
     }
     /// Emphasizes syntax once the state has prepared it. Default is true.
@@ -587,6 +597,7 @@ fn render_diff(
         rem,
         expansion_lines: state.expansion_lines(),
         line_number: props.line_number,
+        line_number_selection: props.line_number_selection,
         syntax_highlight: props.syntax_highlight,
         header_visible: props.header_visible,
         hover_highlight: props.hover_highlight,
@@ -877,6 +888,7 @@ struct CodePresentation {
     rem: Pixels,
     expansion_lines: usize,
     line_number: bool,
+    line_number_selection: bool,
     syntax_highlight: bool,
     header_visible: bool,
     hover_highlight: DiffHoverHighlight,
@@ -1471,6 +1483,9 @@ fn render_gutter(
         .w(code.gutter_width)
         .h(code.row_height)
         .pr_1()
+        .when(!code.line_number_selection, |this| {
+            this.on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+        })
         .when(hover, |this| {
             this.hover(|this| this.bg(cx.theme().list_hover))
         })
@@ -1492,33 +1507,43 @@ fn render_gutter(
                     .justify_end()
                     .text_size(code.font_size)
                     .text_color(changed_color.unwrap_or(cx.theme().muted_foreground))
-                    .hover(|this| this.text_color(changed_color.unwrap_or(cx.theme().foreground)))
-                    .role(gpui::accesskit::Role::Button)
-                    .aria_label(
+                    .role(if code.line_number_selection {
+                        gpui::accesskit::Role::Button
+                    } else {
+                        gpui::accesskit::Role::Label
+                    })
+                    .aria_label(if code.line_number_selection {
                         t!(
                             "Diff.SelectLine",
                             side = side_label(side),
                             line = position.line()
                         )
-                        .to_string(),
-                    )
-                    .child(position.line().to_string())
-                    .on_mouse_down(MouseButton::Left, move |event, window, cx| {
-                        down.update(cx, |state, cx| {
-                            state.begin_line_selection(
-                                position.clone(),
-                                event.modifiers.shift,
-                                window,
-                                cx,
-                            )
-                        })
+                        .to_string()
+                    } else {
+                        position.line().to_string()
                     })
-                    .on_mouse_move(move |event, _, cx| {
-                        if event.pressed_button == Some(MouseButton::Left) {
-                            moved.update(cx, |state, cx| {
-                                state.drag_line_selection(dragged.clone(), cx)
+                    .child(position.line().to_string())
+                    .when(code.line_number_selection, |this| {
+                        this.hover(|this| {
+                            this.text_color(changed_color.unwrap_or(cx.theme().foreground))
+                        })
+                        .on_mouse_down(MouseButton::Left, move |event, window, cx| {
+                            down.update(cx, |state, cx| {
+                                state.begin_line_selection(
+                                    position.clone(),
+                                    event.modifiers.shift,
+                                    window,
+                                    cx,
+                                )
                             })
-                        }
+                        })
+                        .on_mouse_move(move |event, _, cx| {
+                            if event.pressed_button == Some(MouseButton::Left) {
+                                moved.update(cx, |state, cx| {
+                                    state.drag_line_selection(dragged.clone(), cx)
+                                })
+                            }
+                        })
                     }),
             )
         })
@@ -1531,6 +1556,9 @@ fn render_gutter(
                     .w(code.rem)
                     .h(code.row_height)
                     .justify_center()
+                    // The action lane overlaps the full-width line-number hit target.
+                    .occlude()
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                     .child(actions),
             )
         })

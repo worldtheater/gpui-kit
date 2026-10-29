@@ -265,6 +265,8 @@ another document.
 
 ## Appearance
 
+`line_number_selection(false)` keeps line numbers visible but disables gutter clicks and drags that select entire lines. Source-text selection and copying remain available. Custom gutter actions consume pointer presses without selecting the line beneath them, even when line-number selection is enabled.
+
 Line numbers, syntax highlighting and file headers are enabled by default:
 
 ```rust
