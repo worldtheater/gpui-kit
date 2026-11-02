@@ -265,6 +265,9 @@ impl BaseDialogRoot {
     fn dismiss_below_y(self, value: Pixels) -> Self {
         map_base_root!(self, dismiss_below_y(value))
     }
+    fn opacity(self, opacity: f32) -> Self {
+        map_base_root!(self, opacity(opacity))
+    }
     fn backdrop(self, element: impl IntoElement) -> Self {
         map_base_root!(self, backdrop(element))
     }
@@ -860,19 +863,20 @@ impl RenderOnce for Dialog {
                                         positioner.into_any_element()
                                     }
                                 }),
-                            ),
-                    )
-                    .map(|layer| {
-                        if animated {
-                            layer
-                                .with_animation("fade-in", animation, |layer, delta| {
-                                    layer.opacity(delta)
-                                })
-                                .into_any_element()
-                        } else {
-                            layer.into_any_element()
-                        }
-                    }),
+                            )
+                            .map(|root| {
+                                // Base paints dialogs in a deferred layer, outside the
+                                // parent's opacity scope. Style the actual host instead.
+                                if animated {
+                                    root.with_animation("fade-in", animation, |root, delta| {
+                                        root.opacity(delta)
+                                    })
+                                    .into_any_element()
+                                } else {
+                                    root.into_any_element()
+                                }
+                            }),
+                    ),
             )
             .into_any_element()
     }
