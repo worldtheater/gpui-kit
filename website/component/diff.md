@@ -183,6 +183,11 @@ self.diff.update(cx, |state, cx| {
 });
 ```
 
+Wave separators offer directional expansion only: each click reveals at most
+`expansion_lines` lines toward the chosen side. Any remainder stays folded,
+even a single line. A range no longer than one step can be expanded at once;
+application commands can still use `expand_unchanged` to reveal all context.
+
 ## Source coordinates and navigation
 
 `DiffSide::Original` and `DiffSide::Modified` identify the file version.

@@ -158,6 +158,9 @@ self.diff.update(cx, |state, cx| {
 });
 ```
 
+波浪分隔线按方向逐步展开，每次最多显示 `expansion_lines` 行；剩余内容继续折叠，即使只剩一行。
+不足一步的范围可以一次展开；应用仍可通过 `expand_unchanged` 命令显示全部上下文。
+
 ## 源文件坐标与导航
 
 `DiffSide::Original` 和 `DiffSide::Modified` 分别表示原始文件和修改后文件。

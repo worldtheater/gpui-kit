@@ -1712,14 +1712,6 @@ fn visible_pairs(
         boundaries[0] += 1;
         boundaries[pairs.len()] -= 1;
     }
-    for range in expanded {
-        let start = range.start.min(pairs.len());
-        let end = range.end.min(pairs.len());
-        if start < end {
-            boundaries[start] += 1;
-            boundaries[end] -= 1;
-        }
-    }
     let mut active = 0;
     let mut visible = boundaries[..pairs.len()]
         .iter()
@@ -1742,6 +1734,22 @@ fn visible_pairs(
         if ix - start < min_collapsed_lines {
             visible[start..ix].fill(true);
         }
+    }
+    // Apply explicit disclosures after the initial short-range rule. A partial
+    // step must not also reveal the final few hidden lines beyond its limit.
+    boundaries.fill(0);
+    for range in expanded {
+        let start = range.start.min(pairs.len());
+        let end = range.end.min(pairs.len());
+        if start < end {
+            boundaries[start] += 1;
+            boundaries[end] -= 1;
+        }
+    }
+    let mut active = 0;
+    for (visible, boundary) in visible.iter_mut().zip(&boundaries) {
+        active += boundary;
+        *visible |= active > 0;
     }
     visible
 }

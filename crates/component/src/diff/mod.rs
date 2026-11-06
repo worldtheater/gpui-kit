@@ -1160,16 +1160,49 @@ fn render_fold(
             })
     };
     if matches!(code.hunk_separator, DiffHunkSeparator::Wave) {
-        let label = t!("Diff.ExpandLines", count = pairs.len()).to_string();
-        return expand(("expand", pairs.start), FoldExpansion::All)
-            .custom(ButtonCustomVariant::new(cx))
+        let wave_expand = |id, expansion, label: String, icon: Option<IconName>| {
+            expand(id, expansion)
+                .custom(ButtonCustomVariant::new(cx))
+                .flex_1()
+                .min_w_0()
+                .h(gpui::rems(0.75))
+                .p_0()
+                .gap_1()
+                .rounded(px(0.))
+                .accessibility_label(label.clone())
+                .tooltip(label)
+                .when_some(icon, |button, icon| button.child(Icon::new(icon).xsmall()))
+                .child(wave_separator(true, cx))
+        };
+        if !partial {
+            return wave_expand(
+                ("expand", pairs.start),
+                FoldExpansion::All,
+                t!("Diff.ExpandLines", count = pairs.len()).to_string(),
+                None,
+            )
+            .w_full()
+            .into_any_element();
+        }
+        return h_flex()
             .w_full()
             .h(gpui::rems(0.75))
-            .p_0()
-            .rounded(px(0.))
-            .accessibility_label(label.clone())
-            .tooltip(label)
-            .child(wave_separator(true, cx))
+            .when(pairs.start > hunk.start, |row| {
+                row.child(wave_expand(
+                    ("expand-down", pairs.start),
+                    FoldExpansion::Down,
+                    t!("Diff.ExpandBelow", count = lines).to_string(),
+                    Some(IconName::ArrowDown),
+                ))
+            })
+            .when(pairs.end < hunk.end, |row| {
+                row.child(wave_expand(
+                    ("expand-up", pairs.start),
+                    FoldExpansion::Up,
+                    t!("Diff.ExpandAbove", count = lines).to_string(),
+                    Some(IconName::ArrowUp),
+                ))
+            })
             .into_any_element();
     }
     h_flex()
